@@ -8,17 +8,17 @@ namespace pjso {
 class TrajectoryOptimizer {
  public:
   struct Options {
-    double eps_abs = 1e-3; // 绝对精度要求，控制解的精度
-    double eps_rel = 1e-3; // 相对精度要求, 控制解的精度
-    double eps_prim_inf = 1e-3; // 原始可行性判断阈值
-    double eps_dual_inf = 1e-3; // 对偶可行性判断阈值
-    double alpha = 1.6; // ADMM松弛因子，通常在[1.0, 1.8]之间
-    double rho = 0.1; // ADMM惩罚参数，影响收敛速度和数值稳定性
-    double sigma = 1e-6; // H矩阵的正则化参数，防止H矩阵奇异
-    int max_iter = 10000; // 最大迭代次数
-    bool verbose = false; // 是否输出求解过程信息
-    bool warm_start = true; // 是否使用初始解进行热启动
-    bool polish = false; // 是否进行抛光步骤以提高解的精度
+    double eps_abs = 1e-3;       // 绝对精度要求，控制解的精度
+    double eps_rel = 1e-3;       // 相对精度要求, 控制解的精度
+    double eps_prim_inf = 1e-3;  // 原始可行性判断阈值
+    double eps_dual_inf = 1e-3;  // 对偶可行性判断阈值
+    double alpha = 1.6;          // ADMM松弛因子，通常在[1.0, 1.8]之间
+    double rho = 0.1;            // ADMM惩罚参数，影响收敛速度和数值稳定性
+    double sigma = 1e-6;         // H矩阵的正则化参数，防止H矩阵奇异
+    int max_iter = 10000;        // 最大迭代次数
+    bool verbose = false;        // 是否输出求解过程信息
+    bool warm_start = true;      // 是否使用初始解进行热启动
+    bool polish = false;         // 是否进行抛光步骤以提高解的精度
   };
 
   struct Result {

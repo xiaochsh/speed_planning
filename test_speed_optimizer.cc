@@ -14,10 +14,10 @@ int main() {
     std::cout << "ToppRA failed: " << res0.message << "\n";
     return -1;
   } else {
-    res0.a[0] = 0.0;  // 确保初始加速度为0
-    res0.a.back() = 0.0; // 确保终端加速度为0
-    res0.v[0] = 0.0;  // 确保初始速度为0
-    res0.v.back() = 0.0; // 确保终端速度为0
+    res0.a[0] = 0.0;      // 确保初始加速度为0
+    res0.a.back() = 0.0;  // 确保终端加速度为0
+    res0.v[0] = 0.0;      // 确保初始速度为0
+    res0.v.back() = 0.0;  // 确保终端速度为0
   }
 
   TrajectoryOptimizer solver(res0.s.size(), res0.dt.front());
@@ -44,8 +44,8 @@ int main() {
   if (res.feasible) {
     std::cout << "\nOptimization Result:\n";
     for (int i = 0; i < res0.s.size(); i++)
-      std::cout << "t=" << res.t[i] << "\ts=" << res.s[i] << "\tv=" << res.v[i] << "\ta=" << res.a[i]
-                << "\tj=" << res.jerk[i] << "\n";
+      std::cout << "t=" << res.t[i] << "\ts=" << res.s[i] << "\tv=" << res.v[i]
+                << "\ta=" << res.a[i] << "\tj=" << res.jerk[i] << "\n";
     plt::figure(1);
     plt::plot(res0.t, res0.s, {{"ls", "-"}, {"c", "red"}, {"label", "ToppRA Position"}});
     plt::plot(res.t, res.s, {{"ls", "-"}, {"c", "blue"}, {"label", "Optimized Position"}});
