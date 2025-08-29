@@ -1,0 +1,33 @@
+---
+# clang-format configuration for C and C++ project
+BasedOnStyle: Google  # 使用 Google 风格作为基础
+IndentWidth: 2         # 缩进为 2 个空格
+TabWidth: 2            # 设置 tab 为 2 个空格宽度
+UseTab: Never          # 不使用制表符，始终使用空格缩进
+ColumnLimit: 100       # 每行最多 100 个字符
+AllowShortIfStatementsOnASingleLine: true  # 不允许单行 if 语句
+AllowShortLoopsOnASingleLine: true        # 不允许单行循环语句
+AllowShortFunctionsOnASingleLine: true  # C 代码允许短函数单行
+AlwaysBreakAfterReturnType: None  # 返回类型后不换行
+BreakBeforeBraces: Attach  # 使用 Attach 风格的大括号风格
+BraceWrapping:
+  AfterFunction: true  # 函数后换行
+  AfterControlStatement: true  # 控制语句后换行
+  AfterNamespace: true  # 命名空间后换行
+  AfterClass: true  # 类定义后换行
+  AfterExternBlock: true  # extern 块后换行
+
+SpaceBeforeParens: ControlStatements  # 控制语句括号前加空格（如 if, for）
+SpacesInParentheses: false  # 括号内不允许有空格
+
+# 代码块处理
+SortIncludes: false  # 自动排序 #include 语句
+IncludeBlocks: Regroup  # 按模块分组头文件
+
+# 注释
+CommentPragmas: 'None'  # 保持注释风格不变
+IndentCaseLabels: true  # switch case 标签缩进
+IndentWrappedFunctionNames: true  # 函数名换行时缩进
+
+MaxEmptyLinesToKeep: 1  # 保留最多 1 个空行
+...
