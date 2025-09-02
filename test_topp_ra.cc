@@ -5,7 +5,7 @@
 namespace plt = matplotlibcpp;
 
 int main() {
-  toppra::ToppRA::Result res = test_topp_ra();
+  auto [res, bounds] = test_topp_ra();
 
   if (res.feasible) {
     plt::figure(1);

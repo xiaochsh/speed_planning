@@ -36,6 +36,17 @@ class ToppRA {
     std::string message;
   };
 
+  struct Bounds {
+    double s_min = -std::numeric_limits<double>::infinity();
+    double s_max = std::numeric_limits<double>::infinity();
+    double v_min = 0.0;
+    double v_max = std::numeric_limits<double>::infinity();
+    double a_min = -std::numeric_limits<double>::infinity();
+    double a_max = std::numeric_limits<double>::infinity();
+    double j_min = -std::numeric_limits<double>::infinity();
+    double j_max = std::numeric_limits<double>::infinity();
+  };
+
   Result solve(const std::vector<double>& s, double v0, double vend) const {
     const std::size_t N = s.size();
     if (N < 2) return makeFail("s must contain at least 2 samples");
@@ -165,7 +176,7 @@ inline std::vector<double> linspace(double s0, double s1, std::size_t N) {
 
 }  // namespace toppra
 
-toppra::ToppRA::Result test_topp_ra() {
+std::pair<toppra::ToppRA::Result, toppra::ToppRA::Bounds> test_topp_ra() {
   using namespace toppra;
 
   auto s = linspace(0.0, 100.0, 501);
@@ -203,5 +214,15 @@ toppra::ToppRA::Result test_topp_ra() {
     std::cout << uniform.t[i] << "\t" << uniform.s[i] << "\t" << uniform.v[i] << "\t"
               << uniform.a[i] << "\n";
   }
-  return uniform;
+  ToppRA::Bounds bounds;
+  bounds.s_min = 0.0;
+  bounds.s_max = 1000.0;
+  bounds.v_min = 0.0;
+  bounds.v_max = 30.0;
+  bounds.a_min = -5.0;
+  bounds.a_max = 2.5;
+  bounds.j_min = -5.0;
+  bounds.j_max = 5.0;
+
+  return {uniform, bounds};
 }

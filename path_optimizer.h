@@ -1,11 +1,12 @@
 #pragma once
+#include <cmath>
 #include <vector>
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include <OsqpEigen/OsqpEigen.h>
 
 namespace pjso {
-class TrajectoryOptimizer {
+class PathOptimizer {
  public:
   struct Options {
     double eps_abs = 1e-3;       // 绝对精度要求，控制解的精度
@@ -22,53 +23,57 @@ class TrajectoryOptimizer {
   };
 
   struct Result {
+    std::vector<double> x;
+    std::vector<double> dx;
+    std::vector<double> ddx;
+    std::vector<double> dddx;
     std::vector<double> s;
-    std::vector<double> v;
-    std::vector<double> a;
-    std::vector<double> jerk;
-    std::vector<double> t;
     bool feasible = true;
     std::string message;
   };
 
-  TrajectoryOptimizer(int N, double dt) : N_(N), dt_(dt) {}
+  PathOptimizer(int N, double ds) : N_(N), ds_(ds) {}
 
-  void setWeights(double ws, double wse, double wv, double wve, double wa, double wae, double wj) {
-    ws_ = ws;
-    wse_ = wse;
-    wv_ = wv;
-    wve_ = wve;
-    wa_ = wa;
-    wae_ = wae;
-    wj_ = wj;
+  void setWeights(double wx, double wxe, double wdx, double wdxe, double wddx, double wddxe,
+                  double wdddx, double wobs) {
+    wx_ = wx;
+    wxe_ = wxe;
+    wdx_ = wdx;
+    wdxe_ = wdxe;
+    wddx_ = wddx;
+    wddxe_ = wddxe;
+    wdddx_ = wdddx;
+    wobs_ = wobs;
   }
 
-  void setBounds(double s_min, double s_max, double v_min, double v_max, double a_min, double a_max,
-                 double j_min, double j_max) {
-    s_min_ = s_min;
-    s_max_ = s_max;
-    v_min_ = v_min;
-    v_max_ = v_max;
-    a_min_ = a_min;
-    a_max_ = a_max;
-    j_min_ = j_min;
-    j_max_ = j_max;
+  void setBounds(double x_min, double x_max, double dx_min, double dx_max, double ddx_min,
+                 double ddx_max, double dddx_min, double dddx_max, std::vector<double> x_max_kappa) {
+    x_min_ = x_min;
+    x_max_ = x_max;
+    dx_min_ = dx_min;
+    dx_max_ = dx_max;
+    ddx_min_ = ddx_min;
+    ddx_max_ = ddx_max;
+    dddx_min_ = dddx_min;
+    dddx_max_ = dddx_max;
+    x_max_kappa_ = x_max_kappa;
   }
 
-  Result solve(const std::vector<double>& s0, const std::vector<double>& v0,
-               const std::vector<double>& a0) {
+  Result solve(const std::vector<double>& x0, const std::vector<double>& dx0,
+               const std::vector<double>& ddx0, const std::vector<double>& refx) {
     Result out;
     out.feasible = true;
     out.message = "";
 
-    if ((int)s0.size() != N_ || (int)v0.size() != N_ || (int)a0.size() != N_) {
+    if ((int)x0.size() != N_ || (int)dx0.size() != N_ || (int)ddx0.size() != N_ ||
+        (int)refx.size() != N_) {
       out.feasible = false;
       out.message = "Input vectors size mismatch N";
       return out;
     }
 
     int variables = 3 * N_;
-    int constraints = 3 + 3 * N_ + (N_ - 1) + 2 * (N_ - 1);
+    int constraints = 3 + 3 * N_ + 3 * (N_ - 1);
 
     Eigen::SparseMatrix<double> P(variables, variables);
     Eigen::VectorXd q(variables);
@@ -77,31 +82,24 @@ class TrajectoryOptimizer {
 
     // --- 构建成本矩阵 P ---
     P.setZero();
-    for (int i = 0; i < N_ - 1; i++) P.coeffRef(i, i) += ws_;
-    P.coeffRef(N_ - 1, N_ - 1) += wse_;
+    for (int i = 0; i < N_ - 1; i++) P.coeffRef(i, i) += wx_ + wobs_;
+    P.coeffRef(N_ - 1, N_ - 1) += wxe_ + wobs_;
 
-    for (int i = 0; i < N_ - 1; i++) P.coeffRef(N_ + i, N_ + i) += wv_;
-    P.coeffRef(2 * N_ - 1, 2 * N_ - 1) += wve_;
+    for (int i = 0; i < N_ - 1; i++) P.coeffRef(N_ + i, N_ + i) += wdx_;
+    P.coeffRef(2 * N_ - 1, 2 * N_ - 1) += wdxe_;
 
     for (int i = 0; i < N_ - 1; i++) {
-      P.coeffRef(2 * N_ + i, 2 * N_ + i) += wa_;
-      P.coeffRef(2 * N_ + i, 2 * N_ + i) += wj_ / (dt_ * dt_);
-      P.coeffRef(2 * N_ + i + 1, 2 * N_ + i + 1) += wj_ / (dt_ * dt_);
-      P.coeffRef(2 * N_ + i, 2 * N_ + i + 1) -= wj_ / (dt_ * dt_);
-      P.coeffRef(2 * N_ + i + 1, 2 * N_ + i) -= wj_ / (dt_ * dt_);
+      P.coeffRef(2 * N_ + i, 2 * N_ + i) += wddx_;
+      P.coeffRef(2 * N_ + i, 2 * N_ + i) += wdddx_ / (ds_ * ds_);
+      P.coeffRef(2 * N_ + i + 1, 2 * N_ + i + 1) += wdddx_ / (ds_ * ds_);
+      P.coeffRef(2 * N_ + i, 2 * N_ + i + 1) -= wdddx_ / (ds_ * ds_);
+      P.coeffRef(2 * N_ + i + 1, 2 * N_ + i) -= wdddx_ / (ds_ * ds_);
     }
-    P.coeffRef(3 * N_ - 1, 3 * N_ - 1) += wae_;
+    P.coeffRef(3 * N_ - 1, 3 * N_ - 1) += wddxe_;
 
     // --- 构建线性成本向量 q ---
     q.setZero();
-    for (int i = 0; i < N_; i++) {
-      q(i) = -ws_ * s0[i];
-      q(N_ + i) = -wv_ * v0[i];
-      // q(2 * N_ + i) = -wa_ * a0[i];
-    }
-    q(N_ - 1) = -wse_ * s0[N_ - 1];
-    q(2 * N_ - 1) = -wve_ * v0[N_ - 1];
-    q(3 * N_ - 1) = -wae_ * a0[N_ - 1];
+    for (int i = 0; i < N_; i++) q(i) = -wobs_ * refx[i];
 
     // --- 构建约束矩阵 A 和上下界 l/u ---
     A.setZero();
@@ -112,40 +110,40 @@ class TrajectoryOptimizer {
 
     // 初始状态约束
     A.insert(constraint_idx, 0) = 1.0;
-    l(constraint_idx) = s0[0];
-    u(constraint_idx) = s0[0];
+    l(constraint_idx) = x0[0];
+    u(constraint_idx) = x0[0];
     constraint_idx++;
     A.insert(constraint_idx, N_) = 1.0;
-    l(constraint_idx) = v0[0];
-    u(constraint_idx) = v0[0];
+    l(constraint_idx) = dx0[0];
+    u(constraint_idx) = dx0[0];
     constraint_idx++;
     A.insert(constraint_idx, 2 * N_) = 1.0;
-    l(constraint_idx) = a0[0];
-    u(constraint_idx) = a0[0];
+    l(constraint_idx) = ddx0[0];
+    u(constraint_idx) = ddx0[0];
     constraint_idx++;
 
     // 状态边界约束
     for (int i = 0; i < N_; i++) {
       A.insert(constraint_idx, i) = 1.0;
-      l(constraint_idx) = s_min_;
-      u(constraint_idx) = s_max_;
+      l(constraint_idx) = x_min_;
+      u(constraint_idx) = std::min(x_max_, x_max_kappa_[i]);
       constraint_idx++;
       A.insert(constraint_idx, N_ + i) = 1.0;
-      l(constraint_idx) = v_min_;
-      u(constraint_idx) = v_max_;
+      l(constraint_idx) = dx_min_;
+      u(constraint_idx) = dx_max_;
       constraint_idx++;
       A.insert(constraint_idx, 2 * N_ + i) = 1.0;
-      l(constraint_idx) = a_min_;
-      u(constraint_idx) = a_max_;
+      l(constraint_idx) = ddx_min_;
+      u(constraint_idx) = ddx_max_;
       constraint_idx++;
     }
 
-    // Jerk约束
+    // 加速度动力学约束
     for (int i = 0; i < N_ - 1; i++) {
-      A.insert(constraint_idx, 2 * N_ + i) = -1.0 / dt_;
-      A.insert(constraint_idx, 2 * N_ + i + 1) = 1.0 / dt_;
-      l(constraint_idx) = j_min_;
-      u(constraint_idx) = j_max_;
+      A.insert(constraint_idx, 2 * N_ + i) = -1.0;
+      A.insert(constraint_idx, 2 * N_ + i + 1) = 1.0;
+      l(constraint_idx) = dddx_min_ * ds_;
+      u(constraint_idx) = dddx_max_ * ds_;
       constraint_idx++;
     }
 
@@ -153,8 +151,8 @@ class TrajectoryOptimizer {
     for (int i = 0; i < N_ - 1; i++) {
       A.insert(constraint_idx, N_ + i) = -1.0;
       A.insert(constraint_idx, N_ + i + 1) = 1.0;
-      A.insert(constraint_idx, 2 * N_ + i) = -0.5 * dt_;
-      A.insert(constraint_idx, 2 * N_ + i + 1) = -0.5 * dt_;
+      A.insert(constraint_idx, 2 * N_ + i) = -0.5 * ds_;
+      A.insert(constraint_idx, 2 * N_ + i + 1) = -0.5 * ds_;
       l(constraint_idx) = 0.0;
       u(constraint_idx) = 0.0;
       constraint_idx++;
@@ -164,9 +162,9 @@ class TrajectoryOptimizer {
     for (int i = 0; i < N_ - 1; i++) {
       A.insert(constraint_idx, i) = -1.0;
       A.insert(constraint_idx, i + 1) = 1.0;
-      A.insert(constraint_idx, N_ + i) = -dt_;
-      A.insert(constraint_idx, 2 * N_ + i) = -dt_ * dt_ / 3.0;
-      A.insert(constraint_idx, 2 * N_ + i + 1) = -dt_ * dt_ / 6.0;
+      A.insert(constraint_idx, N_ + i) = -ds_;
+      A.insert(constraint_idx, 2 * N_ + i) = -ds_ * ds_ / 3.0;
+      A.insert(constraint_idx, 2 * N_ + i + 1) = -ds_ * ds_ / 6.0;
       l(constraint_idx) = 0.0;
       u(constraint_idx) = 0.0;
       constraint_idx++;
@@ -228,14 +226,14 @@ class TrajectoryOptimizer {
 
     Eigen::VectorXd sol = solver.getSolution();
 
-    out.t.resize(N_);
-    for (int i = 0; i < N_; i++) out.t[i] = i * dt_;
-    out.s.assign(sol.segment(0, N_).data(), sol.segment(0, N_).data() + N_);
-    out.v.assign(sol.segment(N_, N_).data(), sol.segment(N_, N_).data() + N_);
-    out.a.assign(sol.segment(2 * N_, N_).data(), sol.segment(2 * N_, N_).data() + N_);
-    out.jerk.resize(N_);
-    for (int i = 0; i < N_ - 1; i++) out.jerk[i] = (out.a[i + 1] - out.a[i]) / dt_;
-    out.jerk[N_ - 1] = out.jerk[N_ - 2];
+    out.s.resize(N_);
+    for (int i = 0; i < N_; i++) out.s[i] = i * ds_;
+    out.x.assign(sol.segment(0, N_).data(), sol.segment(0, N_).data() + N_);
+    out.dx.assign(sol.segment(N_, N_).data(), sol.segment(N_, N_).data() + N_);
+    out.ddx.assign(sol.segment(2 * N_, N_).data(), sol.segment(2 * N_, N_).data() + N_);
+    out.dddx.resize(N_);
+    for (int i = 0; i < N_ - 1; i++) out.dddx[i] = (out.ddx[i + 1] - out.ddx[i]) / ds_;
+    out.dddx[N_ - 1] = out.dddx[N_ - 2];
 
     return out;
   }
@@ -256,18 +254,20 @@ class TrajectoryOptimizer {
 
  private:
   int N_;
-  double dt_ = 0.1;
+  double ds_ = 0.1;
 
   // 权重
-  double ws_ = 1.0, wse_ = 100000.0;
-  double wv_ = 1.0, wve_ = 100000.0;
-  double wa_ = 0.1, wae_ = 100000.0, wj_ = 1e-4;
+  double wx_ = 1.0, wxe_ = 100000.0;
+  double wdx_ = 1.0, wdxe_ = 100000.0;
+  double wddx_ = 0.1, wddxe_ = 100000.0, wdddx_ = 1e-4;
+  double wobs_ = 100000.0;
 
   // 约束边界
-  double s_min_ = 0.0, s_max_ = 10000.0;
-  double v_min_ = -50.0, v_max_ = 50.0;
-  double a_min_ = -5.0, a_max_ = 2.5;
-  double j_min_ = -5.0, j_max_ = 5.0;
+  double x_min_ = -10.0, x_max_ = 10.0;
+  double dx_min_ = -50.0, dx_max_ = 50.0;
+  double ddx_min_ = -100.0, ddx_max_ = 100.0;
+  double dddx_min_ = -1000.0, dddx_max_ = 1000.0;
+  std::vector<double> x_max_kappa_;
 
   // 求解器参数
   double eps_abs_ = 1e-3;

@@ -8,7 +8,7 @@ using namespace toppra;
 namespace plt = matplotlibcpp;
 
 int main() {
-  toppra::ToppRA::Result res0 = test_topp_ra();
+  auto [res0, bounds0] = test_topp_ra();
 
   if (!res0.feasible) {
     std::cout << "ToppRA failed: " << res0.message << "\n";
@@ -23,10 +23,11 @@ int main() {
   TrajectoryOptimizer solver(res0.s.size(), res0.dt.front());
 
   // 设置权重
-  solver.setWeights(1.0, 1e5, 1.0, 1e5, 0.1, 1e5, 1e-4);
+  solver.setWeights(1.0, 1e5, 50.0, 1e5, 0.1, 1e5, 1e-4);
 
   // 设置约束边界
-  solver.setBounds(0, 1000, -30, 20, -5, 2.5, -5, 5);
+  solver.setBounds(bounds0.s_min, bounds0.s_max, bounds0.v_min, bounds0.v_max, bounds0.a_min,
+                   bounds0.a_max, bounds0.j_min, bounds0.j_max);
 
   // 设置求解器参数
   TrajectoryOptimizer::Options options;
