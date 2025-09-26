@@ -16,7 +16,7 @@ class PathSmootherTest : public ::testing::Test {
  protected:
   void SetUp() override {
     // 公共设置
-    ds = 0.5;
+    ds = 0.25;
     options.sqp_ctol = 1e-3;
     options.sqp_ftol = 1e-4;
     options.sqp_pen_max_iter = 10;
@@ -217,31 +217,31 @@ class PathSmootherTest : public ::testing::Test {
 // }
 
 // 测试用例3: S形曲线路径平滑
-TEST_F(PathSmootherTest, ScurveSmoothing) {
-  std::vector<double> refx, refy;
-  generateScurve(refx, refy, 60.0, 8.0, 0.05);
+// TEST_F(PathSmootherTest, ScurveSmoothing) {
+//   std::vector<double> refx, refy;
+//   generateScurve(refx, refy, 60.0, 8.0, 0.05);
 
-  NlpFemSmoother smoother(refx.size(), ds);
-  smoother.setWeights(1.0, 1.0, 10000.0, 1000000.0);
-  smoother.setBounds(1.0, 0.05);
-  smoother.setOptions(options);
+//   NlpFemSmoother smoother(refx.size(), ds);
+//   smoother.setWeights(1.0, 1.0, 10000.0, 1000000.0);
+//   smoother.setBounds(1.0, 0.05);
+//   smoother.setOptions(options);
 
-  auto res = smoother.solve(refx, refy);
+//   auto res = smoother.solve(refx, refy);
 
-  ASSERT_TRUE(res.feasible) << "Optimization failed: " << res.message;
+//   ASSERT_TRUE(res.feasible) << "Optimization failed: " << res.message;
 
-  // 验证曲率连续性改善
-  double orig_change_rate = computeCurvatureChangeRate(refx, refy);
-  double smooth_change_rate = computeCurvatureChangeRate(res.x, res.y);
-  EXPECT_LT(smooth_change_rate, orig_change_rate);
+//   // 验证曲率连续性改善
+//   double orig_change_rate = computeCurvatureChangeRate(refx, refy);
+//   double smooth_change_rate = computeCurvatureChangeRate(res.x, res.y);
+//   EXPECT_LT(smooth_change_rate, orig_change_rate);
 
-  // 验证与原始路径的偏差在允许范围内
-  double max_dev = computeMaxDeviation(refx, refy, res.x, res.y);
-  EXPECT_LT(max_dev, 0.8);
+//   // 验证与原始路径的偏差在允许范围内
+//   double max_dev = computeMaxDeviation(refx, refy, res.x, res.y);
+//   EXPECT_LT(max_dev, 0.8);
 
-  // 绘图
-  plot(refx, refy, res.x, res.y);
-}
+//   // 绘图
+//   plot(refx, refy, res.x, res.y);
+// }
 
 // // 测试用例4: 高噪声情况下的平滑
 // TEST_F(PathSmootherTest, HighNoiseSmoothing) {
@@ -303,59 +303,59 @@ TEST_F(PathSmootherTest, ScurveSmoothing) {
 //   }
 // }
 
-// // 测试用例6: U型弯平滑 (使用原始代码中的函数)
-// TEST_F(PathSmootherTest, UTurnSmoothing) {
-//   std::vector<double> refx, refy;
+// 测试用例6: U型弯平滑 (使用原始代码中的函数)
+TEST_F(PathSmootherTest, UTurnSmoothing) {
+  std::vector<double> refx, refy;
 
-//   // 复制原始代码中的generateUTurn函数逻辑
-//   double R = 12.0;
-//   double straight_len = 25.0;
-//   std::default_random_engine gen(42);
-//   std::normal_distribution<double> noise(0.0, 0.001);
+  // 复制原始代码中的generateUTurn函数逻辑
+  double R = 12.0;
+  double straight_len = 25.0;
+  std::default_random_engine gen(42);
+  std::normal_distribution<double> noise(0.0, 0.001);
 
-//   // 进入直线
-//   for (double xx = -R - straight_len; xx <= -R; xx += ds) {
-//     refx.push_back(xx + noise(gen));
-//     refy.push_back(R + noise(gen));
-//   }
+  // 进入直线
+  for (double xx = -R - straight_len; xx <= -R; xx += ds) {
+    refx.push_back(xx + noise(gen));
+    refy.push_back(R + noise(gen));
+  }
 
-//   // 半圆
-//   int arc_pts = static_cast<int>(M_PI * R / ds);
-//   for (int i = 0; i <= arc_pts; i++) {
-//     double theta = M_PI / 2.0 - i * (M_PI / arc_pts);
-//     double xx = -R + R * cos(theta);
-//     double yy = R * sin(theta);
-//     refx.push_back(xx + noise(gen));
-//     refy.push_back(yy + noise(gen));
-//   }
+  // 半圆
+  int arc_pts = static_cast<int>(M_PI * R / ds);
+  for (int i = 0; i <= arc_pts; i++) {
+    double theta = M_PI / 2.0 - i * (M_PI / arc_pts);
+    double xx = -R + R * cos(theta);
+    double yy = R * sin(theta);
+    refx.push_back(xx + noise(gen));
+    refy.push_back(yy + noise(gen));
+  }
 
-//   // 出去直线
-//   for (double xx = -R; xx >= -R - straight_len; xx -= ds) {
-//     refx.push_back(xx + noise(gen));
-//     refy.push_back(-R + noise(gen));
-//   }
+  // 出去直线
+  for (double xx = -R; xx >= -R - straight_len; xx -= ds) {
+    refx.push_back(xx + noise(gen));
+    refy.push_back(-R + noise(gen));
+  }
 
-//   NlpFemSmoother smoother(refx.size(), ds);
-//   smoother.setWeights(1.0, 1.0, 10000.0, 1000000.0);
-//   smoother.setBounds(0.5, 0.02);
-//   smoother.setOptions(options);
+  NlpFemSmoother smoother(refx.size(), ds);
+  smoother.setWeights(1.0, 1.0, 10000.0, 1000000.0);
+  smoother.setBounds(0.5, 0.02);
+  smoother.setOptions(options);
 
-//   auto res = smoother.solve(refx, refy);
+  auto res = smoother.solve(refx, refy);
 
-//   ASSERT_TRUE(res.feasible) << "Optimization failed: " << res.message;
+  ASSERT_TRUE(res.feasible) << "Optimization failed: " << res.message;
 
-//   // 验证曲率连续性改善
-//   double orig_change_rate = computeCurvatureChangeRate(refx, refy);
-//   double smooth_change_rate = computeCurvatureChangeRate(res.x, res.y);
-//   EXPECT_LT(smooth_change_rate, orig_change_rate);
+  // 验证曲率连续性改善
+  double orig_change_rate = computeCurvatureChangeRate(refx, refy);
+  double smooth_change_rate = computeCurvatureChangeRate(res.x, res.y);
+  EXPECT_LT(smooth_change_rate, orig_change_rate);
 
-//   // 验证与原始路径的偏差在允许范围内
-//   double max_dev = computeMaxDeviation(refx, refy, res.x, res.y);
-//   EXPECT_LT(max_dev, 0.5);
+  // 验证与原始路径的偏差在允许范围内
+  double max_dev = computeMaxDeviation(refx, refy, res.x, res.y);
+  EXPECT_LT(max_dev, 0.5);
 
-//   // 绘图
-//   plot(refx, refy, res.x, res.y);
-// }
+  // 绘图
+  plot(refx, refy, res.x, res.y);
+}
 
 }  // namespace fem
 

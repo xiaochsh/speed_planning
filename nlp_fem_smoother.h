@@ -59,7 +59,7 @@ class NlpFemSmoother {
     }
 
     int variables = 2 * N_ + N_ - 2;
-    int constraints = 2 * N_ + 2* (N_ - 2);
+    int constraints = 2 * N_ + 2 * (N_ - 2);
 
     Eigen::SparseMatrix<double> P(variables, variables);
     Eigen::VectorXd q(variables);
@@ -179,12 +179,21 @@ class NlpFemSmoother {
           return opt;
         }
 
+        sol = solver.getSolution();
+        for (int i = 0; i < N_; i++) {
+          opt.x[i] = sol[2 * i];
+          opt.y[i] = sol[2 * i + 1];
+        }
+        for (int i = 0; i < N_ - 2; i++) {
+          slack_[i] = sol[2 * N_ + i];
+        }
+
         double cur_fvalue = solver.getObjValue();
         double ftol = std::abs((last_fvalue - cur_fvalue) / last_fvalue);
 
         if (ftol < sqp_ftol_) {
           std::cout << "merit function value converges at sub itr num " << sub_itr
-                    << "merit function value converges to " << cur_fvalue << ", with ftol " << ftol
+                    << " merit function value converges to " << cur_fvalue << ", with ftol " << ftol
                     << ", under max_ftol " << sqp_ftol_ << std::endl;
           fconverged = true;
           break;
@@ -200,26 +209,17 @@ class NlpFemSmoother {
         return opt;
       }
 
-      sol = solver.getSolution();
-      for (int i = 0; i < N_; i++) {
-        opt.x[i] = sol[2 * i];
-        opt.y[i] = sol[2 * i + 1];
-      }
-      for (int i = 0; i < N_ - 2; i++) {
-        slack_[i] = sol[2 * N_ + i];
-      }
-
       ctol = CalculateConstraintViolation(opt.x, opt.y);
 
       std::cout << "ctol is " << ctol << ", at pen itr " << pen_itr << std::endl;
 
       if (ctol < sqp_ctol_) {
         std::cout << "constraint satisfied at pen itr num " << pen_itr
-                  << "constraint voilation value drops to " << ctol << ", under max_ctol "
+                  << " constraint voilation value drops to " << ctol << ", under max_ctol "
                   << sqp_ctol_ << std::endl;
         opt.feasible = true;
         opt.message = "constraint satisfied at pen itr num " + std::to_string(pen_itr) +
-                      "constraint voilation value drops to " + std::to_string(ctol) +
+                      " constraint voilation value drops to " + std::to_string(ctol) +
                       ", under max_ctol " + std::to_string(sqp_ctol_);
         return opt;
       }
@@ -363,8 +363,8 @@ class NlpFemSmoother {
     // 2) slack constraints: slack_i <= 0  (so l = -inf, u = 0)
     for (int i = 0; i < N_ - 2; ++i) {
       A.coeffRef(constraint_idx, 2 * N_ + i) = 1.0;  // coefficient for slack var
-      l(constraint_idx) = 0.0;                     // -inf
-      u(constraint_idx) = 1e20;                       // slack >= 0
+      l(constraint_idx) = 0.0;                       // -inf
+      u(constraint_idx) = 1e20;                      // slack >= 0
       constraint_idx++;
     }
 
